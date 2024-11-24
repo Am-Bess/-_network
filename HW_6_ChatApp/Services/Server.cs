@@ -1,41 +1,37 @@
 ﻿using System.Net;
-using HW_6_ChatApp.Model;
 using HW_6_ChatApp.Abstraction;
-using System.Net.Sockets;
+using HW_6_ChatApp.Models;
 
-namespace HW_6_ChatApp
+namespace HW_6_ChatApp.Services
 {
-    public class ServerUDP
+    class Server
     {
-        private UdpClient? udpClient;
-        private IPEndPoint? ip;
         private Dictionary<String, IPEndPoint> clients = new Dictionary<String, IPEndPoint>();
-
         IMessageSource messageSource;
 
         bool work = true;
 
-        //Токен для остановки сервера
-        static private CancellationTokenSource cts = new CancellationTokenSource();
-
-        static private CancellationToken ct = cts.Token;
-
-
-        public ServerUDP(IMessageSource source)
+        public Server(IMessageSource source)
         {
             messageSource = source;
         }
 
         public void Work()
         {
-            ip = new IPEndPoint(IPAddress.Any, 0);
-
-            Console.WriteLine("Сервер ожидает сообщение.");
+            Console.WriteLine("UDP Сервер ожидает сообщений...");
 
             while (work)
             {
-                var message = messageSource.ReceiveMessage(ref ip);
-                ProcessMessage(message);
+                try
+                {
+                    IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                    var message = messageSource.Receive(ref remoteEndPoint);
+                    ProcessMessage(message, remoteEndPoint);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Ошибка при обработке сообщения: " + ex.Message);
+                }
             }
         }
 
@@ -44,60 +40,61 @@ namespace HW_6_ChatApp
             work = false;
         }
 
-
-        private void ProcessMessage(MessageUDP messageUdp)
+        private void ProcessMessage(MessageUdp messageUdp, IPEndPoint fromep)
         {
-            Console.WriteLine($"Получено сообщение от {messageUdp?.FromName} для {messageUdp?.ToName} с командой {messageUdp?.Command}:");
+            Console.WriteLine($"Получено сообщение от {messageUdp.FromName} для {messageUdp.ToName} с командой {messageUdp.Command}:");
             Console.WriteLine(messageUdp?.Text);
 
-            switch (messageUdp?.Command)
+            if (messageUdp?.Command == Command.Register)
             {
-                case Command.Mes:
-                    RelyMessage(messageUdp);
-                    break;
-                case Command.Reg:
-                    Register(messageUdp);
-                    break;
-                case Command.Conf:
-                    ConfirmMessageReceived(messageUdp.Id);
-                    break;
+                Register(messageUdp, new IPEndPoint(fromep.Address, fromep.Port));
+            }
+            if (messageUdp?.Command == Command.Confirmation)
+            {
+                Console.WriteLine("Confirmation receiver");
+                ConfirmMessageReceived(messageUdp.Id);
+            }
+            if (messageUdp?.Command == Command.Message)
+            {
+                RelyMessage(messageUdp);
             }
 
         }
 
-        private void RelyMessage(MessageUDP messageUdp)
+        private void RelyMessage(MessageUdp messageUdp)
         {
             if (clients.TryGetValue(messageUdp.ToName!, out IPEndPoint? ep))
             {
                 int id;
 
-                using (ContextDB context = new ContextDB())
+                using (var context = new Context())
                 {
                     var fromUser = context.Users?.FirstOrDefault((u) => u.Name == messageUdp.FromName);
                     var toUser = context.Users?.FirstOrDefault((u) => u.Name == messageUdp.ToName);
+
                     var messageDd = new Message()
                     {
                         Text = messageUdp.Text,
                         DateMessage = DateTime.Now,
                         IsReceived = false,
                         ToUser = toUser,
-                        FromUser = fromUser,
+                        FromUser = fromUser
                     };
                     context.Messages?.Add(messageDd);
                     context.SaveChanges();
                     id = messageDd.Id;
                 }
 
-                var forwardMessageJson = new MessageUDP()
+                var forwardMessage = new MessageUdp()
                 {
                     Id = id,
-                    Command = Command.Mes,
+                    Command = Command.Message,
                     ToName = messageUdp.ToName,
                     FromName = messageUdp.FromName,
                     Text = messageUdp.Text
                 };
 
-                messageSource.SendMessage(forwardMessageJson, ep);
+                messageSource.Send(forwardMessage, ep);
 
                 Console.WriteLine($"Message Relied, from = {messageUdp.FromName} to = {messageUdp.ToName}");
             }
@@ -105,42 +102,36 @@ namespace HW_6_ChatApp
             {
                 Console.WriteLine("Пользователь не найден.");
             }
-
         }
 
         void ConfirmMessageReceived(int? id)
         {
             Console.WriteLine("Message confirmation id=" + id);
 
-            using (var ctx = new ContextDB())
+            using (var context = new Context())
             {
-                var msg = ctx.Messages?.FirstOrDefault(x => x.Id == id);
+                var msg = context.Messages?.FirstOrDefault(x => x.Id == id);
 
                 if (msg != null)
                 {
                     msg.IsReceived = true;
-                    ctx.SaveChanges();
+                    context.SaveChanges();
                 }
             }
         }
 
 
-        private void Register(MessageUDP messageUdp)
+        private void Register(MessageUdp messageUdp, IPEndPoint fromep)
         {
             Console.WriteLine($"Message register, Name = {messageUdp.FromName}");
-            clients.Add(messageUdp.FromName!, ip!);
+            clients?.Add(messageUdp.FromName!, fromep);
 
-            using (ContextDB context = new ContextDB())
+            using (var context = new Context())
             {
-                if (context.Users.Any((u) => u.Name == messageUdp.FromName))
-                {
-                    return;
-                }
-                context.Add(new User() { Name = messageUdp.FromName });
+                if (context.Users?.FirstOrDefault(x => x.Name == messageUdp.FromName) != null) return;
+                context.Add(new User { Name = messageUdp.FromName });
                 context.SaveChanges();
             }
         }
     }
 }
-
-

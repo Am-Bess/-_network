@@ -1,15 +1,13 @@
-﻿
-
-namespace HW_6_ChatApp.Model
+﻿namespace HW_6_ChatApp.Models
 {
     public class Message
     {
         public int Id { get; set; }
-
+        
         public string? Text { get; set; }
-
+        
         public DateTime DateMessage { get; set; }
-
+        
         public bool IsReceived { get; set; }
 
         public int? ToUserId { get; set; }

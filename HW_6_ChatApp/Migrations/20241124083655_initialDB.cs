@@ -7,18 +7,18 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HW_6_ChatApp.Migrations
 {
     /// <inheritdoc />
-    public partial class initialcreate : Migration
+    public partial class initialDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "users",
+                name: "Users",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
+                    name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -39,16 +39,16 @@ namespace HW_6_ChatApp.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("message_pkey", x => x.id);
+                    table.PrimaryKey("massages_pkey", x => x.id);
                     table.ForeignKey(
                         name: "messages_from_user_id_fkey",
                         column: x => x.from_user_id,
-                        principalTable: "users",
+                        principalTable: "Users",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "messages_to_user_id_fkey",
                         column: x => x.to_user_id,
-                        principalTable: "users",
+                        principalTable: "Users",
                         principalColumn: "id");
                 });
 
@@ -70,7 +70,7 @@ namespace HW_6_ChatApp.Migrations
                 name: "Messages");
 
             migrationBuilder.DropTable(
-                name: "users");
+                name: "Users");
         }
     }
 }

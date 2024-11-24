@@ -1,21 +1,22 @@
-﻿using HW_6_ChatApp.Abstraction;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
+using HW_6_ChatApp.Abstraction;
+using HW_6_ChatApp.Models;
 
-namespace HW_6_ChatApp
+namespace HW_6_ChatApp.Services
 {
-    public class ClientUDP
+    public class Client
     {
-        UdpClient udpClientClient = new UdpClient();
+        private UdpClient udpClientClient = new UdpClient() ;
         private readonly string _adress;
         private readonly int _port;
         private readonly string _name;
 
-        IMessageSource messageSource;
+        public IMessageSource messageSource;
 
-        bool work = true;
+        public bool work = true;
 
-        public ClientUDP(IMessageSource source, string adress, int port, string name)
+        public Client(IMessageSource source, string adress, int port, string name)
         {
             _adress = adress;
             _port = port;
@@ -23,29 +24,31 @@ namespace HW_6_ChatApp
             messageSource = source;
         }
 
-        public void Start()
+        public void ClientStart()
         {
             udpClientClient = new UdpClient(_port);
-            new Thread(() => Listener()).Start();
-            Sender();
+            new Thread(ClientListener).Start();
+            ClientSender();
         }
 
-        public void Stop()
+        public void ClientStop()
         {
             work = false;
         }
 
-        public void Listener()
+        public void ClientListener()
         {
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
+
             while (work)
             {
-                IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
                 try
                 {
-                    var message = messageSource.ReceiveMessage(ref remoteEndPoint);
-                    Console.WriteLine("Получено сообщение от: " + message.FromName);
-                    Console.WriteLine(message.Text);
-                    Confirmation();
+                    var messageReceived = messageSource.Receive(ref remoteEndPoint);
+                    Console.WriteLine("Получено сообщение от: " + messageReceived.FromName);
+                    Console.WriteLine(messageReceived.Text);
+
+                    ClientConfirm(messageReceived, remoteEndPoint);
                 }
                 catch (Exception e)
                 {
@@ -54,65 +57,61 @@ namespace HW_6_ChatApp
             }
         }
 
-        public void Sender()
+        public void ClientSender()
         {
             IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
+            ClientRegister(remoteEndPoint);
 
             while (work)
             {
                 try
                 {
+                    Console.WriteLine("UDP Клиент ожидает ввода сообщения");
                     Console.WriteLine("Ожидается ввод сообщения:");
                     var text = Console.ReadLine();
                     Console.WriteLine("Введите имя получателя:");
                     var toName = Console.ReadLine();
 
-                    MessageUDP message = new MessageUDP()
+                    MessageUdp message = new MessageUdp()
                     {
-                        Command = Command.Mes,
+                        Command = Command.Message,
                         ToName = toName,
                         FromName = _name,
                         Text = text
                     };
 
-                    messageSource.SendMessage(message, remoteEndPoint);
-                    Console.WriteLine("Сообщение отправлено.");
+                    messageSource.Send(message, remoteEndPoint);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("Ошибка при обработке сообщения : " + e);
                 }
+
             }
 
         }
-        public void Register()
+        public void ClientRegister(IPEndPoint remoteEndPoint)
         {
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
-
-            MessageUDP message = new MessageUDP()
+            MessageUdp message = new MessageUdp()
             {
-                Command = Command.Reg,
+                Command = Command.Register,
                 ToName = null,
                 FromName = _name,
                 Text = null
             };
-
-            messageSource.SendMessage(message, remoteEndPoint);
+            messageSource.Send(message, remoteEndPoint);
         }
 
-        public void Confirmation()
+        public void ClientConfirm(MessageUdp msg, IPEndPoint remoteEndPoint)
         {
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
-
-            MessageUDP message = new MessageUDP()
+            MessageUdp message = new MessageUdp()
             {
-                Command = Command.Conf,
+                Command = Command.Confirmation,
                 ToName = null,
                 FromName = _name,
                 Text = null
             };
-
-            messageSource.SendMessage(message, remoteEndPoint);
+            messageSource.Send(message, remoteEndPoint);
         }
     }
 }
