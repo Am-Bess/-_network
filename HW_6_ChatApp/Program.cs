@@ -12,15 +12,13 @@ internal class Program
     {
         if (args.Length == 0)
         {
-            UdpMessageSource messageSourceServer = new UdpMessageSource(12345);
-            Server server = new Server(messageSourceServer);
+            Server server = new Server(new UdpMessageSource());
             server.Work();
         }
         else if (args.Length == 1)
         {
-            UdpMessageSource messageSourceClient = new UdpMessageSource(12345);
-            Client client = new Client(messageSourceClient, "127.0.0.1", 1234, args[0]);
-            client.ClientStart();
+            Client client = new Client(args[0], "127.0.0.1", 8080);
+            client.StartClient();
         }
     }
 }

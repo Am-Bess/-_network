@@ -1,16 +1,14 @@
-﻿using System.Net;
-using HW_6_ChatApp.Abstraction;
+﻿using HW_6_ChatApp.Abstraction;
 using HW_6_ChatApp.Models;
 using HW_6_ChatApp.Services;
+using System.Net;
 
 namespace TestClient
 {
     public class MockMessageSource : IMessageSource
     {
         private Client? client;
-
-        private IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
-
+        private IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 12345);
         private Queue<MessageUdp> messages = new Queue<MessageUdp>();
 
         public MockMessageSource()
@@ -33,6 +31,7 @@ namespace TestClient
             return messages.Dequeue();
         }
 
+
         public void Send(MessageUdp message, IPEndPoint ep)
         {
             ep = endPoint;
@@ -43,7 +42,6 @@ namespace TestClient
             }
             messages.Dequeue();
         }
-
         public void AddClient(Client client)
         {
             this.client = client;

@@ -4,28 +4,28 @@ using HW_6_ChatApp.Models;
 
 namespace HW_6_ChatApp.Services
 {
-    class Server
+    public class Server
     {
+        private readonly IMessageSource _messageSource;
         private Dictionary<String, IPEndPoint> clients = new Dictionary<String, IPEndPoint>();
-        IMessageSource messageSource;
 
         bool work = true;
 
         public Server(IMessageSource source)
         {
-            messageSource = source;
+            _messageSource = source;
         }
 
         public void Work()
         {
             Console.WriteLine("UDP Сервер ожидает сообщений...");
+            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
 
             while (work)
             {
                 try
                 {
-                    IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
-                    var message = messageSource.Receive(ref remoteEndPoint);
+                    var message = _messageSource.Receive(ref remoteEndPoint);
                     ProcessMessage(message, remoteEndPoint);
                 }
                 catch (Exception ex)
@@ -51,7 +51,7 @@ namespace HW_6_ChatApp.Services
             }
             if (messageUdp?.Command == Command.Confirmation)
             {
-                Console.WriteLine("Confirmation receiver");
+                Console.WriteLine($"Подтвержденное сообщение, от = {messageUdp.FromName} для = {messageUdp.ToName}, ему назначено id = {messageUdp.Id}");
                 ConfirmMessageReceived(messageUdp.Id);
             }
             if (messageUdp?.Command == Command.Message)
@@ -94,7 +94,7 @@ namespace HW_6_ChatApp.Services
                     Text = messageUdp.Text
                 };
 
-                messageSource.Send(forwardMessage, ep);
+                _messageSource.Send(forwardMessage, ep);
 
                 Console.WriteLine($"Message Relied, from = {messageUdp.FromName} to = {messageUdp.ToName}");
             }
@@ -121,16 +121,25 @@ namespace HW_6_ChatApp.Services
         }
 
 
-        private void Register(MessageUdp messageUdp, IPEndPoint fromep)
+        private void Register(MessageUdp messageUdp, IPEndPoint fromEndPoint)
         {
-            Console.WriteLine($"Message register, Name = {messageUdp.FromName}");
-            clients?.Add(messageUdp.FromName!, fromep);
-
-            using (var context = new Context())
+            
+            if (clients.TryAdd(messageUdp.FromName!, fromEndPoint))
             {
-                if (context.Users?.FirstOrDefault(x => x.Name == messageUdp.FromName) != null) return;
-                context.Add(new User { Name = messageUdp.FromName });
-                context.SaveChanges();
+                using (var ctx = new Context())
+                {
+                    if (ctx.Users?.FirstOrDefault(x => x.Name == messageUdp.FromName) != null)
+                    {
+                        Console.WriteLine($"Пользователь {messageUdp.FromName} уже зарегистрирован в чате");
+                        return;
+                    }
+                    else
+                    {
+                        ctx.Add(new User { Name = messageUdp.FromName });
+                        ctx.SaveChanges();
+                        Console.WriteLine($"Пользователь {messageUdp.FromName} зарегистрирован в чате");
+                    }
+                }
             }
         }
     }

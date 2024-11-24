@@ -7,28 +7,24 @@ namespace HW_6_ChatApp.Services
 {
     public class Client
     {
-        private UdpClient udpClientClient = new UdpClient() ;
-        private readonly string _adress;
-        private readonly int _port;
         private readonly string _name;
 
-        public IMessageSource messageSource;
+        private IMessageSource _messageSource;
+        private readonly IPEndPoint _IPEndPoint;   
 
         public bool work = true;
 
-        public Client(IMessageSource source, string adress, int port, string name)
+        public Client(string name, string ipAdress, int port)
         {
-            _adress = adress;
-            _port = port;
+            _messageSource = new UdpMessageSource(port);
+            _IPEndPoint = new IPEndPoint(IPAddress.Parse(ipAdress), 12345);
             _name = name;
-            messageSource = source;
         }
 
-        public void ClientStart()
+        public void StartClient()
         {
-            udpClientClient = new UdpClient(_port);
             new Thread(ClientListener).Start();
-            ClientSender();
+            ClientSender();            
         }
 
         public void ClientStop()
@@ -38,17 +34,21 @@ namespace HW_6_ChatApp.Services
 
         public void ClientListener()
         {
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
+            Console.WriteLine("UDP Клиент запущен...");
+            IPEndPoint endPoint = new IPEndPoint(_IPEndPoint.Address, _IPEndPoint.Port);
 
             while (work)
             {
                 try
                 {
-                    var messageReceived = messageSource.Receive(ref remoteEndPoint);
+                    var messageReceived = _messageSource.Receive(ref endPoint);
+                    if (messageReceived != null)
+                    {
                     Console.WriteLine("Получено сообщение от: " + messageReceived.FromName);
                     Console.WriteLine(messageReceived.Text);
 
-                    ClientConfirm(messageReceived, remoteEndPoint);
+                    ClientConfirm(messageReceived, endPoint);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -59,7 +59,7 @@ namespace HW_6_ChatApp.Services
 
         public void ClientSender()
         {
-            IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Parse(_adress), 12345);
+            IPEndPoint remoteEndPoint = new IPEndPoint(_IPEndPoint.Address, _IPEndPoint.Port);
             ClientRegister(remoteEndPoint);
 
             while (work)
@@ -80,7 +80,7 @@ namespace HW_6_ChatApp.Services
                         Text = text
                     };
 
-                    messageSource.Send(message, remoteEndPoint);
+                    _messageSource.Send(message, remoteEndPoint);
                 }
                 catch (Exception e)
                 {
@@ -99,7 +99,7 @@ namespace HW_6_ChatApp.Services
                 FromName = _name,
                 Text = null
             };
-            messageSource.Send(message, remoteEndPoint);
+            _messageSource.Send(message, remoteEndPoint);
         }
 
         public void ClientConfirm(MessageUdp msg, IPEndPoint remoteEndPoint)
@@ -111,7 +111,7 @@ namespace HW_6_ChatApp.Services
                 FromName = _name,
                 Text = null
             };
-            messageSource.Send(message, remoteEndPoint);
+            _messageSource.Send(message, remoteEndPoint);
         }
     }
 }

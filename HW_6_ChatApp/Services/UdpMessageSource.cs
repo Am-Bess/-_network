@@ -8,27 +8,25 @@ namespace HW_6_ChatApp.Services
 {
     public class UdpMessageSource : IMessageSource
     {
-        private UdpClient udpClient;
+        private readonly UdpClient _udpClient;
 
-        public UdpMessageSource(int port)
+        public UdpMessageSource(int port = 12345)
         {
-            udpClient = new UdpClient(port);
+            _udpClient = new UdpClient(port);
         }
 
         public MessageUdp Receive(ref IPEndPoint ep)
         {
-            byte[] receiveBytes = udpClient.Receive(ref ep);
+            byte[] receiveBytes = _udpClient.Receive(ref ep);
             string receivedData = Encoding.UTF8.GetString(receiveBytes);
-
             return MessageUdp.MessageFromJson(receivedData);
         }
 
         public void Send(MessageUdp message, IPEndPoint ep)
         {
             byte[] forwardBytes = Encoding.UTF8.GetBytes(message.MessageToJson());
-
-            udpClient.Send(forwardBytes, forwardBytes.Length, ep);
+            _udpClient.Send(forwardBytes, forwardBytes.Length, ep);
+            Console.WriteLine("Сообщение отправлено.");
         }
     }
-
 }
