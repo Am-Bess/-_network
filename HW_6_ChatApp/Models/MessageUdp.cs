@@ -15,9 +15,9 @@ namespace HW_6_ChatApp.Models
             return JsonSerializer.Serialize(this);
         }
 
-        public static MessageUdp MessageFromJson(string json)
+        public static MessageUdp? MessageFromJson(string json)
         {
-            return JsonSerializer.Deserialize<MessageUdp>(json) ?? new MessageUdp();
+            return JsonSerializer.Deserialize<MessageUdp>(json);
         }
 
     }
